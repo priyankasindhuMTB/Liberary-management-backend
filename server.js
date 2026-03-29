@@ -22,7 +22,7 @@ mongoose.connect(process.env.MONGO_URI)
   .catch((err) => console.log("MongoDB connection error:", err));
 
 // Use the router
-app.use("/api", seatRouter); 
+app.use("/api/seats", seatRouter); 
 app.use("/api/users", userRouter);
 app.use("/api/payment",paymentRouter)
 app.use("/api/shifts",shiftRouter)
