@@ -14,6 +14,7 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.send("Library Management System API is running...");
+  console.log("wwwwwwwwwwwwwwwwwww",res)
 });
 
 // MongoDB connection
