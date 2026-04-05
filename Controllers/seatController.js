@@ -1,6 +1,6 @@
 import Seat from '../models/Seat.js'
 export const getSeats = async (req, res) => {
-  //   console.log("!!! API REQUEST RECEIVED !!!");
+    console.log("!!! API REQUEST RECEIVED !!!");
 
   try {
     const seats = await Seat.find().populate("occupiedBy");
@@ -19,6 +19,7 @@ export const getSeats = async (req, res) => {
 export const insertSeat = async (req, res) => {
   try {
     const { seatNumber, isOccupied, occupiedBy, price } = req.body
+    console.log("insers seat",req.body)
 
     if (!seatNumber) {
       return res.status(400).json({

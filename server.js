@@ -19,9 +19,11 @@ app.get("/", (req, res) => {
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected successfully"))
+  .then(() => {
+    console.log("✅ MongoDB connected successfully");
+    console.log("👉 DB NAME:", mongoose.connection.name); // ⭐ ADD THIS
+  })
   .catch((err) => console.log("MongoDB connection error:", err));
-
 // Use the router
 app.use("/api/seats", seatRouter); 
 app.use("/api/users", userRouter);
