@@ -5,7 +5,7 @@ import User from "../models/User.js";
 
 export const addPayment = async (req, res) => {
   try {
-    const { userId, seatId, amount } = req.body;
+    const { userId, seatId, amount,libraryId } = req.body;
 
     if (!userId || !amount) {
       return res.status(400).json({
@@ -17,7 +17,8 @@ export const addPayment = async (req, res) => {
     const payment = new Payment({
       userId,
       seatId,
-      amount
+      amount,
+      libraryId:req.admin.libraryId
     });
 
     await payment.save();
@@ -37,7 +38,7 @@ export const getUserPayment = async (req, res) => {
     const { userId } = req.params;
 
     // 1️⃣ Get all payments
-    const payments = await Payment.find({ userId });
+    const payments = await Payment.find({ userId,libraryId:req.admin.libraryId });
 
     const totalPaid = payments.reduce(
       (sum, p) => sum + Math.abs(p.amount),

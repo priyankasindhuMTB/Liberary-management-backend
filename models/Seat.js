@@ -4,7 +4,6 @@ const seatSchema = new mongoose.Schema({
   seatNumber: {
     type: Number,
     required: true,
-    unique: true
   },
 
   occupiedBy: {
@@ -24,8 +23,15 @@ const seatSchema = new mongoose.Schema({
         default: 0
       }
     }
-  ]
+  ],
+
+  libraryId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Library",
+  required: true
+}
 });
+seatSchema.index({ seatNumber: 1, libraryId: 1 }, { unique: true });
 
 const Seat = mongoose.model("Seat", seatSchema);
 export default Seat;

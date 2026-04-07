@@ -5,7 +5,7 @@ export const registerUser = async (req, res) => {
   try {
     console.log("Request Body:", req.body);
 
-    const { name, email, password, seatId, shiftId } = req.body;
+    const { name, email, password, seatId, shiftId, libraryId} = req.body;
 
     if (!name || !email || !password || !seatId || !shiftId) {
       return res.status(400).json({ message: "Required fields missing" });
@@ -21,7 +21,7 @@ export const registerUser = async (req, res) => {
     }
 
 
-    const newUser = new User({ name, email, password, seatId, shiftId });
+    const newUser = new User({ name, email, password, seatId, shiftId,libraryId:req.admin.libraryId });
     const savedUser = await newUser.save();
 
    
@@ -41,7 +41,7 @@ export const registerUser = async (req, res) => {
 export const getAllUsers = async (req, res) => {
     try {
         // We populate 'seatId' to see which seat the user belongs to
-        const users = await User.find().populate("seatId").populate("shiftId");
+        const users = await User.find({libraryId:req.admin.libraryId}).populate("seatId").populate("shiftId");
         console.log(users)
         
         res.status(200).json({message:"get user successfully",success:true,users:users})

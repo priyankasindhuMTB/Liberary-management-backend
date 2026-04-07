@@ -3,7 +3,8 @@ export const getSeats = async (req, res) => {
     console.log("!!! API REQUEST RECEIVED !!!");
 
   try {
-    const seats = await Seat.find().populate("occupiedBy");
+    // const seats = await Seat.find().populate("occupiedBy");
+    const seats = await Seat.find({libraryId:req.admin.libraryId}).populate("occupiedBy")
 
     console.log("Seats found:", seats.length);
 
@@ -18,7 +19,7 @@ export const getSeats = async (req, res) => {
 
 export const insertSeat = async (req, res) => {
   try {
-    const { seatNumber, isOccupied, occupiedBy, price } = req.body
+    const { seatNumber, isOccupied, occupiedBy, price,libraryId } = req.body
     console.log("insers seat",req.body)
 
     if (!seatNumber) {
@@ -38,7 +39,8 @@ export const insertSeat = async (req, res) => {
     const newSeat = new Seat({
       seatNumber,
       occupiedBy,
-       price: price || []
+       price: price || [],
+       libraryId:req.admin.libraryId
     });
     const saveSeat = await newSeat.save()
     res.status(200).json({ success: true, message: "seat insert successfully", saveSeat })

@@ -17,7 +17,12 @@ const paymentSchema = new mongoose.Schema({
   date: {
     type: Date,
     default: Date.now
-  }
+  },
+  libraryId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Library",
+  required: true
+}
 });
 
 const Payment = mongoose.model("Payment", paymentSchema);

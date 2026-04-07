@@ -1,11 +1,12 @@
 import express from 'express'
 import { getSeats, insertSeat } from "../Controllers/seatController.js";
+import {verifyAdmin} from "../middleware/authMiddleware.js"
 
 const seatRouter = express.Router();
 
 // Corrected syntax:
-seatRouter.get("/getSeats", getSeats); 
-seatRouter.post("/createSeat",insertSeat)
+seatRouter.get("/getSeats",verifyAdmin, getSeats); 
+seatRouter.post("/createSeat", verifyAdmin ,insertSeat)
 
 
 export default seatRouter;
