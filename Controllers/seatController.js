@@ -29,7 +29,10 @@ export const insertSeat = async (req, res) => {
       })
 
     }
-    const existingSeat = await Seat.findOne({ seatNumber })
+    const existingSeat = await Seat.findOne({
+      seatNumber,
+      libraryId: req.admin.libraryId,
+    });
     if (existingSeat) {
       return res.status(400).json({
         success: false,

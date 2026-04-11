@@ -3,10 +3,12 @@ import Shift from "../models/Shift.js";
 // GET all shifts
 export const getShifts = async (req, res) => {
   try {
+     console.log("REQ.ADMIN >>>", req.admin);
     // const shifts = await Shift.find();
     const shifts = await Shift.find({libraryId:req.admin.libraryId});
     res.status(200).json(shifts);
   } catch (error) {
+     console.log("CREATE SHIFT ERROR >>>", error); // 👈 ADD THIS
     res.status(500).json({ message: "Error fetching shifts", error });
   }
 };
