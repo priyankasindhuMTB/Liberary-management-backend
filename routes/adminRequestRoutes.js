@@ -6,7 +6,7 @@ import {
   getAllRequests,
   approveRequest,
   rejectRequest
-} from "../controllers/adminRequestController.js";
+} from "../Controllers/adminRequestController.js";
 
 import { verifyAdmin } from "../middleware/authMiddleware.js";
 import { isSuperAdmin } from "../middleware/roleMiddleware.js";
