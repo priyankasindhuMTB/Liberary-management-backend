@@ -5,7 +5,7 @@ import User from "../models/User.js";
 
 export const addPayment = async (req, res) => {
   try {
-    const { userId, seatId, amount,libraryId } = req.body;
+    const { userId, seatId, amount } = req.body;
 
     if (!userId || !amount) {
       return res.status(400).json({
@@ -18,7 +18,7 @@ export const addPayment = async (req, res) => {
       userId,
       seatId,
       amount,
-      libraryId:req.admin.libraryId
+      libraryId: req.admin.libraryId
     });
 
     await payment.save();
@@ -37,15 +37,15 @@ export const getUserPayment = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // 1️⃣ Get all payments
-    const payments = await Payment.find({ userId,libraryId:req.admin.libraryId });
+    // 1️⃣ Get payments
+    const payments = await Payment.find({
+      userId,
+      libraryId: req.admin.libraryId
+    });
 
-    const totalPaid = payments.reduce(
-      (sum, p) => sum + Math.abs(p.amount),
-      0
-    );
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
 
-    // 2️⃣ Get user with seat & shift
+    // 2️⃣ Get user
     const user = await User.findById(userId)
       .populate("seatId")
       .populate("shiftId");
@@ -78,19 +78,18 @@ export const getUserPayment = async (req, res) => {
       });
     }
 
-    // 4️⃣ FIND MATCHING SHIFT PRICE ✅ (MAIN FIX)
+    // 4️⃣ Find shift price
     const shiftPriceObj = seat.price.find(
       p => String(p.shiftId) === String(user.shiftId._id)
     );
 
-    // 5️⃣ Get price
     const seatPrice = shiftPriceObj?.amount || 0;
 
-    // 6️⃣ Calculate pending
+    // 5️⃣ Calculate pending
     let pending = seatPrice - totalPaid;
     if (pending < 0) pending = 0;
 
-    // 7️⃣ Final response
+    // 6️⃣ Final response
     res.json({
       success: true,
       seatPrice,

@@ -1,53 +1,63 @@
-import Admin from "../models/Admin.js";
 import AdminRequest from "../models/AdminRequest.js";
+import Admin from "../models/Admin.js";
 import Library from "../models/Library.js";
 import bcrypt from "bcrypt";
-import { emailExactMatch, normalizeEmail } from "../utils/email.js";
 
 
+// 📨 1. ADMIN REQUEST (Register)
 export const requestAdmin = async (req, res) => {
   try {
-    const { name, password, libraryName } = req.body;
-    const email = normalizeEmail(req.body.email);
+    const { name, email, password, libraryName } = req.body;
 
     if (!name || !email || !password || !libraryName) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    const existingAdmin = await Admin.findOne({ email: emailExactMatch(email) });
+    // check existing admin
+    const existingAdmin = await Admin.findOne({ email });
     if (existingAdmin) {
-      return res.status(400).json({ message: "An admin with this email already exists. Log in instead." });
+      return res.status(400).json({ message: "Admin already exists" });
     }
 
-    const pending = await AdminRequest.findOne({
-      email: emailExactMatch(email),
-      status: "pending",
-    });
+    // check pending request
+    const pending = await AdminRequest.findOne({ email, status: "pending" });
     if (pending) {
-      return res.status(400).json({ message: "You already have a pending request for this email." });
+      return res.status(400).json({ message: "Request already pending" });
     }
 
+    // password hash
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const request = new AdminRequest({
+    // save request
+    const request = await AdminRequest.create({
       name,
       email,
       password: hashedPassword,
       libraryName
     });
 
-    console.log("request>>>>>>>>>>",request)
-
-    await request.save();
-
-    res.json({ message: "Request sent successfully" });
+    res.json({ message: "Request sent successfully", request });
 
   } catch (error) {
-    res.status(500).json({ message: "Error", error });
+    res.status(500).json({ message: error.message });
   }
 };
 
 
+
+// 📋 2. GET ALL PENDING REQUESTS (Super Admin)
+export const getAllRequests = async (req, res) => {
+  try {
+    const requests = await AdminRequest.find({ status: "pending" });
+    res.json(requests);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+// ✅ 3. APPROVE REQUEST (Super Admin)
 export const approveRequest = async (req, res) => {
   try {
     const request = await AdminRequest.findById(req.params.id);
@@ -60,38 +70,54 @@ export const approveRequest = async (req, res) => {
       return res.status(400).json({ message: "Already approved" });
     }
 
-    const existingAdmin = await Admin.findOne({
-      email: emailExactMatch(request.email),
-    });
-    if (existingAdmin) {
-      return res.status(400).json({ message: "Admin already exists" });
-    }
+    // 1. create library
+// ✅ check if library already exists
+let library = await Library.findOne({ name: request.libraryName });
 
-    // 1. Create Library
-    const library = new Library({
-      name: request.libraryName,
-      ownerName: request.name
-    });
+if (!library) {
+  // create new if not exists
+  library = await Library.create({
+    name: request.libraryName,
+    ownerName: request.name
+  });
+}
 
-    await library.save();
-
-    // 2. Create Admin
-    const admin = new Admin({
+    // 2. create admin
+    await Admin.create({
       name: request.name,
-      email: normalizeEmail(request.email),
+      email: request.email,
       password: request.password,
-      libraryId: library._id,
-      role: "admin"
+      libraryId: library._id
     });
 
-    await admin.save();
-
-    // 3. Delete request
-    await AdminRequest.findByIdAndDelete(req.params.id);
+    // 3. update request
+    request.status = "approved";
+    await request.save();
 
     res.json({ message: "Approved successfully" });
 
   } catch (error) {
-    res.status(500).json({ message: "Error", error });
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+// ❌ 4. REJECT REQUEST (optional)
+export const rejectRequest = async (req, res) => {
+  try {
+    const request = await AdminRequest.findById(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    request.status = "rejected";
+    await request.save();
+
+    res.json({ message: "Request rejected" });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };

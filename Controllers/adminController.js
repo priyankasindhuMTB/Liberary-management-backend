@@ -1,152 +1,144 @@
+
 import Admin from "../models/Admin.js";
-import AdminRequest from "../models/AdminRequest.js";
-import Library from "../models/Library.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { emailExactMatch, normalizeEmail } from "../utils/email.js";
 
-/** True if at least one super_admin exists (setup wizard is disabled after this). */
-export const getHasSuperAdmin = async (req, res) => {
+export const getAllAdmins = async (req, res) => {
   try {
-    const count = await Admin.countDocuments({ role: "super_admin" });
-    res.json({ hasSuperAdmin: count > 0 });
+    const admins = await Admin.find({ role: "admin" })
+      .select("-password")
+      .populate("libraryId", "name"); // Library ka naam bhi dikhane ke liye
+      
+    res.json(admins);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
 
-/**
- * One-time: create the first super_admin + HQ library. Disabled once any super_admin exists.
- */
-export const setupFirstSuperAdmin = async (req, res) => {
-  try {
-    const existing = await Admin.countDocuments({ role: "super_admin" });
-    if (existing > 0) {
-      return res.status(403).json({
-        message:
-          "A super admin already exists. Log in as super admin, or run: npm run promote:superadmin -- your@email.com",
-      });
-    }
 
-    const { name, email: rawEmail, password } = req.body;
-    const email = normalizeEmail(rawEmail);
-
-    if (!name?.trim() || !email || !password) {
-      return res.status(400).json({ message: "Name, email, and password are required" });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
-    }
-
-    const pattern = emailExactMatch(email);
-    const dup = await Admin.findOne({ email: pattern });
-    if (dup) {
-      return res.status(400).json({
-        message: "That email is already an admin. Log in and use promote:superadmin to make them super_admin.",
-      });
-    }
-
-    const library = await Library.create({
-      name: "HQ",
-      ownerName: name.trim(),
-    });
-
-    const hashed = await bcrypt.hash(password, 10);
-    await Admin.create({
-      name: name.trim(),
-      email,
-      password: hashed,
-      libraryId: library._id,
-      role: "super_admin",
-    });
-
-    res.status(201).json({
-      message: "Super admin created. Log in with this email and password, then open /super-admin to approve requests.",
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-};
-
-/** Who may call PUT /api/admin-request/approve/:id (matches isSuperAdmin middleware). */
-export const getApproveCapability = async (req, res) => {
-  try {
-    const bypass = process.env.ALLOW_LIBRARY_ADMIN_APPROVE === "true";
-    const isSuper = req.admin.role === "super_admin";
-    res.json({
-      canApprove: isSuper || bypass,
-      devBypassActive: bypass && !isSuper,
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-};
-
+// 🔐 ADMIN LOGIN
 export const loginAdmin = async (req, res) => {
   try {
-    if (!process.env.JWT_SECRET) {
-      return res.status(500).json({
-        message: "Server misconfiguration: JWT_SECRET is not set in .env",
-      });
-    }
-
     const { email, password } = req.body;
-    const emailPattern = emailExactMatch(email);
 
-    if (!emailPattern || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
-    }
-
-    const admin = await Admin.findOne({ email: emailPattern });
+    const admin = await Admin.findOne({ email });
 
     if (!admin) {
-      const pending = await AdminRequest.findOne({
-        email: emailPattern,
-        status: "pending",
-      });
-
-      if (pending) {
-        return res.status(400).json({
-          message:
-            "Your signup request is still pending. A super admin must approve it at /super-admin before you can log in.",
-          code: "PENDING_APPROVAL",
-        });
-      }
-
       return res.status(400).json({
-        message:
-          "No admin account for this email. If you have not signed up yet, submit a library request first (see link on this page).",
-        code: "NO_ADMIN",
+        message: "Admin not found",
+        code: "NO_ADMIN"
       });
     }
 
-    const isMatch = await bcrypt.compare(password, admin.password);
+    // ✅ FIX: agar password hash nahi hai (purana data) toh bhi handle karo
+    let isMatch = false;
+    try {
+      isMatch = await bcrypt.compare(password, admin.password);
+    } catch {
+      // hash nahi tha, plain text compare
+      isMatch = password === admin.password;
+    }
 
     if (!isMatch) {
-      return res.status(400).json({ message: "Wrong password" });
+      return res.status(400).json({ message: "Invalid password" });
     }
 
     const token = jwt.sign(
       {
         id: admin._id,
-        libraryId: admin.libraryId,
-        role: admin.role
+        role: admin.role,
+        libraryId: admin.libraryId
       },
-     process.env.JWT_SECRET, 
-  { expiresIn: "1d" }
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
     );
 
-    const adminObj = admin.toObject();
-    delete adminObj.password;
-
     res.json({
-      success: true,
+      message: "Login successful",
       token,
-      admin: adminObj,
+      admin: {
+        _id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role,
+        libraryId: admin.libraryId
+      }
     });
 
   } catch (error) {
-    res.status(500).json({ message: "Server error", error });
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+// 👤 GET ADMIN PROFILE
+export const getAdminProfile = async (req, res) => {
+  try {
+    const admin = await Admin.findById(req.admin._id).select("-password");
+    res.json(admin);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+// ✅ NEW: Check karo koi super_admin exist karta hai ya nahi
+export const hasSuperAdmin = async (req, res) => {
+  try {
+    const superAdmin = await Admin.findOne({ role: "super_admin" });
+    res.json({ hasSuperAdmin: !!superAdmin });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+// ✅ NEW: Check karo current logged-in admin approve kar sakta hai ya nahi
+export const approveCapability = async (req, res) => {
+  try {
+    const canApprove = req.admin.role === "super_admin" ||
+      process.env.ALLOW_LIBRARY_ADMIN_APPROVE === "true";
+
+    res.json({
+      canApprove,
+      devBypassActive: process.env.ALLOW_LIBRARY_ADMIN_APPROVE === "true"
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+// ✅ NEW: Pehli baar super admin banana (koi super_admin na ho tabhi)
+export const setupFirstSuper = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "All fields required" });
+    }
+
+    // Already exists?
+    const existing = await Admin.findOne({ role: "super_admin" });
+    if (existing) {
+      return res.status(400).json({ message: "Super admin already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await Admin.create({
+      name,
+      email,
+      password: hashedPassword,
+      role: "super_admin"
+    });
+
+    res.json({ message: "Super admin created successfully" });
+
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "Email already in use" });
+    }
+    res.status(500).json({ message: error.message });
   }
 };

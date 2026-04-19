@@ -16,12 +16,29 @@ export const getShifts = async (req, res) => {
 // ADD new shift (optional but useful)
 export const createShift = async (req, res) => {
   try {
-    const { name, startTime, endTime,libraryId } = req.body;
+    const { name, startTime, endTime } = req.body;
 
-    const shift = new Shift({ name, startTime, endTime,libraryId:req.admin.libraryId });
+    // 🔥 ADD THIS (duplicate check)
+    const existingShift = await Shift.findOne({
+      name,
+      libraryId: req.admin.libraryId
+    });
+
+    if (existingShift) {
+      return res.status(400).json({ message: "Shift already exists" });
+    }
+
+    const shift = new Shift({
+      name,
+      startTime,
+      endTime,
+      libraryId: req.admin.libraryId
+    });
+
     await shift.save();
 
     res.status(201).json({ success: true, shift });
+
   } catch (error) {
     res.status(500).json({ message: "Error creating shift", error });
   }

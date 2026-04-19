@@ -19,39 +19,93 @@ export const getSeats = async (req, res) => {
 
 export const insertSeat = async (req, res) => {
   try {
-    const { seatNumber, isOccupied, occupiedBy, price,libraryId } = req.body
-    console.log("insers seat",req.body)
+    const { seatNumber, price } = req.body;
 
-    if (!seatNumber) {
+    const seatNum = Number(seatNumber);
+
+    if (!seatNum) {
       return res.status(400).json({
         success: false,
-        message: "seat number is required"
-      })
-
+        message: "Invalid seat number"
+      });
     }
+
+    // 🔥 check only inside SAME library
     const existingSeat = await Seat.findOne({
-      seatNumber,
-      libraryId: req.admin.libraryId,
+      seatNumber: seatNum,
+      libraryId: req.admin.libraryId
     });
+
     if (existingSeat) {
       return res.status(400).json({
         success: false,
-        message: "Seat already exists"
+        message: "Seat already exists in this library"
       });
     }
+
     const newSeat = new Seat({
-      seatNumber,
-      occupiedBy,
-       price: price || [],
-       libraryId:req.admin.libraryId
+      seatNumber: seatNum,
+      price: Array.isArray(price) ? price : [],
+      libraryId: req.admin.libraryId   // 🔥 MAIN POINT
     });
-    const saveSeat = await newSeat.save()
-    res.status(200).json({ success: true, message: "seat insert successfully", saveSeat })
+
+    await newSeat.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Seat created successfully"
+    });
 
   } catch (error) {
-    console.error("Error in create seat:", error);
-    res.status(500).json({ message: "Server error", success: false, error: error.message });
+    console.error("Error:", error);
 
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "Duplicate seat in same library"
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
+};
 
-}
+
+export const updateSeat = async (req, res) => {
+  try {
+    const { seatId } = req.params;
+    const { price } = req.body;
+ 
+    const seat = await Seat.findOne({ _id: seatId, libraryId: req.admin.libraryId });
+ 
+    if (!seat) {
+      return res.status(404).json({ success: false, message: "Seat not found" });
+    }
+ 
+    // Existing price array mein merge karo
+    const updatedPrice = [...seat.price];
+ 
+    (price || []).forEach(newEntry => {
+      const idx = updatedPrice.findIndex(
+        p => String(p.shiftId) === String(newEntry.shiftId)
+      );
+      if (idx !== -1) {
+        updatedPrice[idx].amount = Number(newEntry.amount); // existing update
+      } else {
+        updatedPrice.push({ shiftId: newEntry.shiftId, amount: Number(newEntry.amount) }); // naya add
+      }
+    });
+ 
+    seat.price = updatedPrice;
+    await seat.save();
+ 
+    res.json({ success: true, message: "Seat updated successfully", seat });
+ 
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+ 

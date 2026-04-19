@@ -1,41 +1,41 @@
-// import express from "express";
-// import { approveRequest, requestAdmin } from "../Controllers/adminRequestController.js";
-// import { verifyAdmin } from "../middleware/authMiddleware.js";
-// import { isSuperAdmin } from "../middleware/roleMiddleware.js";
-
-
-// const adminRequestRouter = express.Router();
-
-// adminRequestRouter.post("/request", requestAdmin);
-// adminRequestRouter.get("/", (req, res) => {
-//   res.send("Admin Request API Working ✅");
-// });
-
-// adminRequestRouter.put("/approve/:id",verifyAdmin, isSuperAdmin, approveRequest);
-
-// export default adminRequestRouter;
 
 
 import express from "express";
-import { approveRequest, requestAdmin } from "../Controllers/adminRequestController.js";
+import {
+  requestAdmin,
+  getAllRequests,
+  approveRequest,
+  rejectRequest
+} from "../controllers/adminRequestController.js";
+
 import { verifyAdmin } from "../middleware/authMiddleware.js";
 import { isSuperAdmin } from "../middleware/roleMiddleware.js";
-import AdminRequest from "../models/AdminRequest.js";
 
 const adminRequestRouter = express.Router();
 
+// ✅ Public: koi bhi request kar sakta hai
 adminRequestRouter.post("/request", requestAdmin);
 
-// Requires valid admin JWT (same as approve) so expired sessions do not still show a misleading list.
-adminRequestRouter.get("/", verifyAdmin, async (req, res) => {
-  try {
-    const requests = await AdminRequest.find({ status: "pending" });
-    res.json(requests);
-  } catch (err) {
-    res.status(500).json({ message: "Error fetching requests" });
-  }
-});
+// ✅ FIX: GET pe sirf verifyAdmin — super_admin aur dev-bypass dono kaam karein
+// isSuperAdmin guard sirf approve/reject pe lagao
+adminRequestRouter.get("/", verifyAdmin, getAllRequests);
 
-adminRequestRouter.put("/approve/:id", verifyAdmin, isSuperAdmin, approveRequest);
+// ✅ Approve aur Reject: super admin ya dev bypass
+adminRequestRouter.put("/approve/:id", verifyAdmin, isSuperAdminOrBypass, approveRequest);
+adminRequestRouter.put("/reject/:id",  verifyAdmin, isSuperAdminOrBypass, rejectRequest);
 
 export default adminRequestRouter;
+
+
+// ─────────────────────────────────────────────────────────────
+// Helper middleware: super_admin OR dev env bypass
+// ─────────────────────────────────────────────────────────────
+function isSuperAdminOrBypass(req, res, next) {
+  if (
+    req.admin.role === "super_admin" ||
+    process.env.ALLOW_LIBRARY_ADMIN_APPROVE === "true"
+  ) {
+    return next();
+  }
+  return res.status(403).json({ message: "Access denied: Super Admin only" });
+}
