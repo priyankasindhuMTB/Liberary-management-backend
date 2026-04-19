@@ -19,7 +19,7 @@ import {
   approveCapability,
   setupFirstSuper,
   getAllAdmins
-} from "../controllers/adminController.js";
+} from "../Controllers/adminController.js";
 import { verifyAdmin } from "../middleware/authMiddleware.js";
 
 const adminRouter = express.Router();
