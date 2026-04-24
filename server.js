@@ -12,26 +12,32 @@ import adminRequestRouter from "./routes/adminRequestRoutes.js";
 dotenv.config();
 
 const app = express();
+
 app.use(cors({
-  origin: ["http://localhost:5173"],
+  origin: [
+    "http://localhost:5173",
+    "https://liberary-management-frontend.vercel.app"
+  ],
   methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"]
+  credentials: true
 }));
+
+// app.options("*", cors());
+
 app.use(express.json());
 
 // ✅ ADD THIS
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "http://localhost:5173");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+// app.use((req, res, next) => {
+//   res.header("Access-Control-Allow-Origin", "http://localhost:5173");
+//   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+//   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
+//   if (req.method === "OPTIONS") {
+//     return res.sendStatus(200);
+//   }
 
-  next();
-});
+//   next();
+// });
 
 app.get("/", (req, res) => {
   res.send("Library Management System API is running...");
