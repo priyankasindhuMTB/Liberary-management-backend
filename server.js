@@ -8,6 +8,7 @@ import paymentRouter from "./routes/paymentRoutes.js";
 import shiftRouter from "./routes/shiftRoutes.js";
 import adminRouter from "./routes/adminRoutes.js";
 import adminRequestRouter from "./routes/adminRequestRoutes.js";
+import roomRouter from "./routes/roomRoutes.js";
 
 dotenv.config();
 
@@ -22,22 +23,8 @@ app.use(cors({
   credentials: true
 }));
 
-// app.options("*", cors());
 
 app.use(express.json());
-
-// ✅ ADD THIS
-// app.use((req, res, next) => {
-//   res.header("Access-Control-Allow-Origin", "http://localhost:5173");
-//   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-//   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-
-//   if (req.method === "OPTIONS") {
-//     return res.sendStatus(200);
-//   }
-
-//   next();
-// });
 
 app.get("/", (req, res) => {
   res.send("Library Management System API is running...");
@@ -58,6 +45,7 @@ app.use("/api/payment",paymentRouter)
 app.use("/api/shifts",shiftRouter)
 app.use("/api/admin",adminRouter)
 app.use("/api/admin-request",adminRequestRouter)
+app.use("/api/rooms", roomRouter);
 app.listen(process.env.PORT || 5001, () => {
   console.log(`Server running on port ${process.env.PORT}`);
 });   

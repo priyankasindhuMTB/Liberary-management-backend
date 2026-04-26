@@ -1,10 +1,7 @@
 import mongoose from "mongoose";
 
 const seatSchema = new mongoose.Schema({
-  seatNumber: {
-    type: Number,
-    required: true,
-  },
+  seatNumber: {type: Number,required: true,},
 
   occupiedBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -29,7 +26,11 @@ const seatSchema = new mongoose.Schema({
   type: mongoose.Schema.Types.ObjectId,
   ref: "Library",
   required: true
-}
+},
+roomId: {  
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Room"
+  }
 });
 seatSchema.index({ seatNumber: 1, libraryId: 1 }, { unique: true });
 

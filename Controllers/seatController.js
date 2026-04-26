@@ -1,17 +1,17 @@
 import Seat from '../models/Seat.js'
 export const getSeats = async (req, res) => {
-    console.log("!!! API REQUEST RECEIVED !!!");
-
   try {
-    // const seats = await Seat.find().populate("occupiedBy");
-    const seats = await Seat.find({libraryId:req.admin.libraryId}).populate("occupiedBy")
+    const { roomId } = req.query;
 
+    const query = { libraryId: req.admin.libraryId };
+    if (roomId) query.roomId = roomId; // ← ab filter kaam karega
+
+    const seats = await Seat.find(query).populate("occupiedBy");
     console.log("Seats found:", seats.length);
 
     res.status(200).json(seats);
 
   } catch (error) {
-    console.log("error", error);
     res.status(500).json({ message: "server error", error: error.message });
   }
 };
@@ -19,7 +19,7 @@ export const getSeats = async (req, res) => {
 
 export const insertSeat = async (req, res) => {
   try {
-    const { seatNumber, price } = req.body;
+    const { seatNumber, price,roomId  } = req.body;
 
     const seatNum = Number(seatNumber);
 
@@ -46,6 +46,7 @@ export const insertSeat = async (req, res) => {
     const newSeat = new Seat({
       seatNumber: seatNum,
       price: Array.isArray(price) ? price : [],
+       roomId:    roomId || null,
       libraryId: req.admin.libraryId   // 🔥 MAIN POINT
     });
 
@@ -77,7 +78,7 @@ export const insertSeat = async (req, res) => {
 export const updateSeat = async (req, res) => {
   try {
     const { seatId } = req.params;
-    const { price } = req.body;
+    const { price,roomId } = req.body;
  
     const seat = await Seat.findOne({ _id: seatId, libraryId: req.admin.libraryId });
  
@@ -100,6 +101,10 @@ export const updateSeat = async (req, res) => {
     });
  
     seat.price = updatedPrice;
+     // ✅ roomId bhi update karo
+    if (roomId !== undefined) {
+      seat.roomId = roomId || null;
+    }
     await seat.save();
  
     res.json({ success: true, message: "Seat updated successfully", seat });
