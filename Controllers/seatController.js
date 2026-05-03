@@ -4,9 +4,8 @@ export const getSeats = async (req, res) => {
     const { roomId } = req.query;
 
     const query = { libraryId: req.admin.libraryId };
-    if (roomId) query.roomId = roomId; // ← ab filter kaam karega
-
-    const seats = await Seat.find(query).populate("occupiedBy");
+    if (roomId) query.roomId = roomId; 
+    const seats = await Seat.find(query).populate("occupiedBy").populate("roomId", "name status");
     console.log("Seats found:", seats.length);
 
     res.status(200).json(seats);
@@ -33,13 +32,14 @@ export const insertSeat = async (req, res) => {
     // 🔥 check only inside SAME library
     const existingSeat = await Seat.findOne({
       seatNumber: seatNum,
-      libraryId: req.admin.libraryId
+      libraryId: req.admin.libraryId,
+      roomId:     roomId || null
     });
 
     if (existingSeat) {
       return res.status(400).json({
         success: false,
-        message: "Seat already exists in this library"
+        message: `Seat #${seatNum} already exists in this room`
       });
     }
 

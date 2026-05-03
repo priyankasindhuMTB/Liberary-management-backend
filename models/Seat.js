@@ -32,7 +32,7 @@ roomId: {
     ref: "Room"
   }
 });
-seatSchema.index({ seatNumber: 1, libraryId: 1 }, { unique: true });
+seatSchema.index({ seatNumber: 1, libraryId: 1,roomId: 1 }, { unique: true });
 
 const Seat = mongoose.model("Seat", seatSchema);
 export default Seat;
