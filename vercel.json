@@ -1,3 +1,4 @@
+
 {
   "version": 2,
   "builds": [
@@ -7,6 +8,16 @@
     }
   ],
   "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "server.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "https://liberary-management-frontend.vercel.app",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Credentials": "true"
+      }
+    },
     {
       "src": "/(.*)",
       "dest": "server.js"

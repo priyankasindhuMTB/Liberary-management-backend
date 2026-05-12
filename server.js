@@ -19,7 +19,8 @@ app.use(cors({
     "http://localhost:5173",
     "https://liberary-management-frontend.vercel.app"
   ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ add OPTIONS
+  allowedHeaders: ["Content-Type", "Authorization"],  
   credentials: true
 }));
 
