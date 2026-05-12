@@ -49,4 +49,5 @@ app.use("/api/admin-request",adminRequestRouter)
 app.use("/api/rooms", roomRouter);
 app.listen(process.env.PORT || 5001, () => {
   console.log(`Server running on port ${process.env.PORT}`);
-});   
+});
+export default app;
