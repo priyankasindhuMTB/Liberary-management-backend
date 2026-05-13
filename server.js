@@ -17,7 +17,7 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    "https://liberary-management-backend.vercel.app"
+    "https://liberary-management-frontend.vercel.app"
   ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ add OPTIONS
   allowedHeaders: ["Content-Type", "Authorization"],  
