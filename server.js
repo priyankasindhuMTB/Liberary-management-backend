@@ -17,7 +17,7 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    "https://liberary-management-frontend.vercel.app"
+    "https://liberary-management-backend.vercel.app"
   ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ add OPTIONS
   allowedHeaders: ["Content-Type", "Authorization"],  
@@ -47,7 +47,9 @@ app.use("/api/shifts",shiftRouter)
 app.use("/api/admin",adminRouter)
 app.use("/api/admin-request",adminRequestRouter)
 app.use("/api/rooms", roomRouter);
-app.listen(process.env.PORT || 5001, () => {
-  console.log(`Server running on port ${process.env.PORT}`);
+const PORT = process.env.PORT || 5001;
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });
 export default app;
