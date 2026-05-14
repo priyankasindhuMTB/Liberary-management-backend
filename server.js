@@ -19,7 +19,7 @@ app.use(cors({
     "http://localhost:5173",
     "https://liberary-management-frontend.vercel.app"
   ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ add OPTIONS
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], 
   allowedHeaders: ["Content-Type", "Authorization"],  
   credentials: true
 }));
@@ -36,7 +36,7 @@ app.get("/", (req, res) => {
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log("✅ MongoDB connected successfully");
-    console.log("👉 DB NAME:", mongoose.connection.name); // ⭐ ADD THIS
+    console.log("👉 DB NAME:", mongoose.connection.name);
   })
   .catch((err) => console.log("MongoDB connection error:", err));
 // Use the router
