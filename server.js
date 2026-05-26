@@ -2,6 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+dotenv.config();
 import seatRouter from "./routes/seatRoutes.js";
 import userRouter from './routes/userRoutes.js';
 import paymentRouter from "./routes/paymentRoutes.js";
@@ -10,7 +11,7 @@ import adminRouter from "./routes/adminRoutes.js";
 import adminRequestRouter from "./routes/adminRequestRoutes.js";
 import roomRouter from "./routes/roomRoutes.js";
 
-dotenv.config();
+import "./config/firebase.js"
 
 const app = express();
 

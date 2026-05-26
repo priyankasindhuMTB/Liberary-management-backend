@@ -20,6 +20,8 @@
         "dotenv": "^17.2.3",
         "env": "^0.0.2",
         "express": "^5.2.1",
+        "firebase": "^12.13.0",
+        "firebase-admin": "^13.10.0",
         "jsonwebtoken": "^9.0.3",
         "mongoose": "^9.1.6",
         "nodemon": "^3.1.11"
