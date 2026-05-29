@@ -10,7 +10,7 @@ import shiftRouter from "./routes/shiftRoutes.js";
 import adminRouter from "./routes/adminRoutes.js";
 import adminRequestRouter from "./routes/adminRequestRoutes.js";
 import roomRouter from "./routes/roomRoutes.js";
-
+import initExpiryCron from "./utils/cron/expiryCron.js";
 import "./config/firebase.js"
 
 const app = express();
@@ -40,6 +40,7 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log("✅ MongoDB connected successfully");
     console.log("👉 DB NAME:", mongoose.connection.name);
+    initExpiryCron()
   })
   .catch((err) => console.log("MongoDB connection error:", err));
 // Use the router
