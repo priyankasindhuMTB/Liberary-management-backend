@@ -1,17 +1,23 @@
+// 1. Core modules first
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
+
+// 2. Initialize dotenv IMMEDIATELY 
 import dotenv from "dotenv";
 dotenv.config();
+
+// 3. NOW import your Firebase file (Note the lowercase 'firebase' to avoid Vercel crashes)
+
+// 4. Your router imports
 import seatRouter from "./routes/seatRoutes.js";
 import userRouter from './routes/userRoutes.js';
 import paymentRouter from "./routes/paymentRoutes.js";
 import shiftRouter from "./routes/shiftRoutes.js";
-import adminRouter from "./routes/adminRoutes.js";
+import adminRouter from "./routes/adminRoutes.js"; // or adminRoutes.js depending on your file name
 import adminRequestRouter from "./routes/adminRequestRoutes.js";
 import roomRouter from "./routes/roomRoutes.js";
 import initExpiryCron from "./utils/cron/expiryCron.js";
-import "./config/firebase.js"
 
 const app = express();
 
@@ -20,19 +26,15 @@ app.use(cors({
     "http://localhost:5173",
     "https://liberary-management-frontend.vercel.app"
   ],
-
-  
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], 
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], 
   allowedHeaders: ["Content-Type", "Authorization"],  
   credentials: true
 }));
-
 
 app.use(express.json());
 
 app.get("/", (req, res) => {
   res.send("Library Management System API is running...");
-  console.log("wwwwwwwwwwwwwwwwwww",res)
 });
 
 // MongoDB connection
@@ -40,20 +42,23 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log("✅ MongoDB connected successfully");
     console.log("👉 DB NAME:", mongoose.connection.name);
-    initExpiryCron()
+    initExpiryCron();
   })
   .catch((err) => console.log("MongoDB connection error:", err));
+
 // Use the router
 app.use("/api/seats", seatRouter); 
 app.use("/api/users", userRouter);
-app.use("/api/payment",paymentRouter)
-app.use("/api/shifts",shiftRouter)
-app.use("/api/admin",adminRouter)
-app.use("/api/admin-request",adminRequestRouter)
+app.use("/api/payment", paymentRouter);
+app.use("/api/shifts", shiftRouter);
+app.use("/api/admin", adminRouter);
+app.use("/api/admin-request", adminRequestRouter);
 app.use("/api/rooms", roomRouter);
+
 const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
+
 export default app;

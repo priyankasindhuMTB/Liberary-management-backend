@@ -24,3 +24,12 @@ dist-ssr
 *.sw?
 # Firebase Secret Files
 config/*.json
+config/serviceAccount.json
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# Firebase Secret Files
+config/*.json
+config/serviceAccount.json

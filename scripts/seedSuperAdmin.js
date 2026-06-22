@@ -30,7 +30,7 @@ async function main() {
 
   const existing = await Admin.findOne({ email: emailExactMatch(email) });
   if (existing) {
-    console.log("Admin already exists for email:", email);
+    // console.log("Admin already exists for email:", email);
     await mongoose.disconnect();
     process.exit(0);
   }
@@ -49,10 +49,10 @@ async function main() {
     role: "super_admin",
   });
 
-  console.log("Super admin created.");
-  console.log("  Email:", email);
-  console.log("  Password:", plainPassword);
-  console.log("Log in at the app, then open /super-admin to approve library requests.");
+  // console.log("Super admin created.");
+  // console.log("  Email:", email);
+  // console.log("  Password:", plainPassword);
+  // console.log("Log in at the app, then open /super-admin to approve library requests.");
 
   await mongoose.disconnect();
 }

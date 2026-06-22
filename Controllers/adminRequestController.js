@@ -1,10 +1,10 @@
 
 import mongoose from "mongoose";
 import AdminRequest from "../models/AdminRequest.js";
-import { sendPushNotification } from "../config/firebase.js";
 import Admin from "../models/Admin.js";
 import Library from "../models/Library.js";
 import bcrypt from "bcrypt";
+import { sendPushNotification } from "../utils/Firebase/notification.js";
 
 // 📨 1. ADMIN REQUEST (Saves request with custom duration)
 export const requestAdmin = async (req, res) => {
@@ -68,7 +68,11 @@ export const requestAdmin = async (req, res) => {
         await sendPushNotification(
           superAdmin.fcmToken,
           titleMsg,
-          `${name} requested access from ${new Date(accessStartDate).toLocaleDateString()} to ${new Date(accessEndDate).toLocaleDateString()}.`
+          `${name} requested access from ${new Date(accessStartDate).toLocaleDateString()} to ${new Date(accessEndDate).toLocaleDateString()}.`,
+          {
+            type: "new_request",
+            url: "/super-admin",
+          }
         );
       }
     } catch (fcmError) {
@@ -86,21 +90,28 @@ export const getAllRequests = async (req, res) => {
   try {
     const requests = await AdminRequest.find({ status: "Pending" });
     res.json(requests);
-    
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// ✅ 3. APPROVE REQUEST (Calculates Dates perfectly)
+// 🏢 3. APPROVE REQUEST
 export const approveRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { superAdminRemarks } = req.body;
+    const { superAdminRemarks, durationMonths } = req.body; // 👈 Frontend se durationMonths read kiya
 
     const request = await AdminRequest.findById(id);
     if (!request) return res.status(404).json({ message: "Request not found" });
     if (request.status === "Approved") return res.status(400).json({ message: "Already approved" });
+
+    // 📅 DYNAMIC TIMELINE DATE CALCULATION LOGIC
+    const startDate = new Date(); // Aaj ki date
+    const endDate = new Date();
+
+    // Dropdown ki value padhega, agar kuch nahi mila toh default 3 mahine set karega
+    const monthsToAdd = durationMonths ? parseInt(durationMonths) : 3;
+    endDate.setMonth(endDate.getMonth() + monthsToAdd);
 
     let library;
     let targetAdminId = request.adminId;
@@ -111,8 +122,8 @@ export const approveRequest = async (req, res) => {
         ownerName: request.name,
         isApproved: true,
         status: "Active",
-        accessStartDate: request.accessStartDate, // Direct assignment
-        accessEndDate: request.accessEndDate     // Direct assignment
+        accessStartDate: startDate, // Updated to dynamic calculated date
+        accessEndDate: endDate       // Updated to dynamic calculated date
       });
 
       const newAdmin = await Admin.create({
@@ -120,9 +131,13 @@ export const approveRequest = async (req, res) => {
         email: request.email,
         password: request.password,
         libraryId: library._id,
-        role: "admin"
+        role: "admin",
+        status: "Active",
+        accessStartDate: startDate,
+        accessEndDate: endDate
       });
 
+      console.log("NEW ADMIN CREATED: ", newAdmin);
       targetAdminId = newAdmin._id;
 
     } else if (request.requestType === "Extension") {
@@ -132,17 +147,25 @@ export const approveRequest = async (req, res) => {
       library = await Library.findById(existingAdmin.libraryId);
       if (!library) return res.status(404).json({ message: "Associated library profile not found" });
 
-      // Override allocation records with user requested structural ranges
+      // Override baseline profiles with current extended parameters
       library.isApproved = true;
       library.status = "Active";
-      library.accessStartDate = request.accessStartDate;
-      library.accessEndDate = request.accessEndDate;
+      library.accessStartDate = startDate;
+      library.accessEndDate = endDate;
       await library.save();
+
+      // Sync data windows to admin profile collection schema
+      existingAdmin.status = "Active";
+      existingAdmin.accessStartDate = startDate;
+      existingAdmin.accessEndDate = endDate;
+      await existingAdmin.save();
     }
 
     request.status = "Approved";
     request.libraryId = library._id;
     request.adminId = targetAdminId;
+    request.accessStartDate = startDate; // Sync back to requests tracker
+    request.accessEndDate = endDate;     // Sync back to requests tracker
     request.superAdminRemarks = superAdminRemarks || "Approved by administration";
     await request.save();
 
@@ -151,16 +174,24 @@ export const approveRequest = async (req, res) => {
       const activeAdminProfile = await Admin.findById(targetAdminId);
       if (activeAdminProfile && activeAdminProfile.fcmToken) {
         await sendPushNotification(
+
           activeAdminProfile.fcmToken,
           "Access Request Approved! 🎉",
-          `Your access window for "${library.name}" is now active until ${library.accessEndDate.toDateString()}.`
-        );
-      }
+          `Aapki library "${library.name}" ka access window ab ${endDate.toDateString()} tak active kar diya gaya hai.`,
+          {
+            type: "approval",
+            url: "/login"
+          }
+        )
+      }else {
+    // Naye registration ke liye yahan aap Nodemailer ka Email trigger hook kar sakte hain
+    console.log("ℹ️ Push notification skipped: New registration has no active FCM device token yet.");
+  }
     } catch (fcmError) {
       console.error("❌ Failed to send approval push notification:", fcmError.message);
     }
 
-    res.json({ message: "Approved successfully", accessUntil: library.accessEndDate.toDateString() });
+    res.json({ message: "Approved successfully", accessUntil: endDate.toDateString() });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -168,6 +199,8 @@ export const approveRequest = async (req, res) => {
 
 // ❌ 4. REJECT REQUEST 
 export const rejectRequest = async (req, res) => {
+    console.log("🚨 REJECT API CALLED");
+  console.log("REQUEST ID:", req.params.id);
   try {
     const { id } = req.params;
     const { superAdminRemarks } = req.body;
@@ -184,11 +217,16 @@ export const rejectRequest = async (req, res) => {
     // ── FCM NOTIFICATION FOR REJECTION ──
     try {
       const activeAdminProfile = await Admin.findOne({ email: request.email });
+      console.log("ACTIVE ADMIN PROFILE:", activeAdminProfile);
       if (activeAdminProfile && activeAdminProfile.fcmToken) {
         await sendPushNotification(
           activeAdminProfile.fcmToken,
-          "Request Update ❌",
-          `Your operational adjustments request was denied. Remarks: ${request.superAdminRemarks}`
+          "Request Rejected ❌",
+          `Your request was rejected. Remarks: ${request.superAdminRemarks}`,
+          {
+            type: "rejected",
+            url: "/request"
+          }
         );
       }
     } catch (fcmError) {

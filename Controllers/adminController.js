@@ -1,19 +1,17 @@
-
-import { sendPushNotification } from "../config/firebase.js";
 import Admin from "../models/Admin.js";
 import Library from "../models/Library.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+// ✅ Import the new clean firebase notification helper
+import { sendPushNotification } from "../utils/Firebase/notification.js"; 
 
 // 📋 GET ALL REGISTERED ADMINS
 export const getAllAdmins = async (req, res) => {
   try {
-    // Fetches all administrators so they render perfectly inside your dashboard list
     const admins = await Admin.find()
       .select("-password")
-      .populate("libraryId", "name"); 
+      .populate("libraryId", "name accessStartDate accessEndDate status"); 
     res.json(admins);
-    console.log("admin",admins);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -22,11 +20,10 @@ export const getAllAdmins = async (req, res) => {
 // 🏢 DIRECT ADMIN CREATION (By Super Admin or Library Admin)
 export const createAdminDirectly = async (req, res) => {
   try {
-    const { name, email, password, libraryName,accessStartDate, accessEndDate,status } = req.body;
+    const { name, email, password, libraryName, accessStartDate, accessEndDate } = req.body;
     
-    // req.admin is set by your verifyAdmin middleware matrix wrapper
     const creatorRole = req.admin?.role; 
-    const creatorLibraryId = req.admin?.libraryId;
+    const creatorLibraryId = req.admin?.libraryId || req.admin?.id;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Name, email, and password fields are required" });
@@ -46,15 +43,23 @@ export const createAdminDirectly = async (req, res) => {
       }
 
       let library = await Library.findOne({ name: libraryName });
+      
       if (!library) {
         library = await Library.create({
           name: libraryName,
           ownerName: name,
           isApproved: true,
-          status: "Active"
+          status: "Active",
+          accessStartDate: accessStartDate ? new Date(accessStartDate) : new Date(), 
+          accessEndDate: accessEndDate ? new Date(accessEndDate) : new Date(new Date().setMonth(new Date().getMonth() + 3)) 
         });
+      } else {
+        library.accessStartDate = accessStartDate ? new Date(accessStartDate) : library.accessStartDate;
+        library.accessEndDate = accessEndDate ? new Date(accessEndDate) : library.accessEndDate;
+        await library.save();
       }
       targetLibraryId = library._id;
+      currentLibrary = library.name;
     } else {
       if (!creatorLibraryId) {
         return res.status(400).json({ message: "Your current account is not linked to any active library infrastructure branch" });
@@ -67,10 +72,26 @@ export const createAdminDirectly = async (req, res) => {
       email,
       password: hashedPassword,
       libraryId: targetLibraryId,
-      accessStartDate, accessEndDate,
+      accessStartDate: accessStartDate ? new Date(accessStartDate) : new Date(), 
+      accessEndDate: accessEndDate ? new Date(accessEndDate) : new Date(new Date().setMonth(new Date().getMonth() + 3)),   
       role: "admin",
-      status: "Active" // Defaults directly to active state upon registration initialization
+      status: "Active",
+      fcmToken: adminFcmToken || null
     });
+
+    // ── FCM NOTIFICATION FOR DIRECT CREATION ──
+    try {
+      // 1. Send confirmation to the creator (Super Admin)
+      if (req.admin && req.admin.fcmToken) {
+         await sendPushNotification(
+            req.admin.fcmToken,
+            "Admin Account Provisioned 🚀",
+            `${name} has been successfully registered under library "${currentLibraryName}".`
+         );
+      }
+    } catch (fcmError) {
+      console.error("❌ Failed to send direct creation push notification:", fcmError.message);
+    }
 
     res.status(201).json({ 
       message: "Administrative account provisioned successfully!",
@@ -81,7 +102,6 @@ export const createAdminDirectly = async (req, res) => {
   }
 };
 
-// 📝 UPDATE ADMIN DETAILS (Inline Name and Email Changes)
 // 📝 UPDATE ADMIN DETAILS (Name, Email, Start Date, & End Date)
 export const updateAdminDirectly = async (req, res) => {
   try {
@@ -111,6 +131,26 @@ export const updateAdminDirectly = async (req, res) => {
       return res.status(404).json({ message: "Admin account not found" });
     }
 
+    if (updatedAdmin.libraryId) {
+      await Library.findByIdAndUpdate(updatedAdmin.libraryId, {
+        accessStartDate: new Date(accessStartDate),
+        accessEndDate: new Date(accessEndDate)
+      });
+    }
+
+    // ── FCM NOTIFICATION FOR TIMELINE MODIFICATIONS ──
+    try {
+      if (updatedAdmin.fcmToken) {
+        await sendPushNotification(
+          updatedAdmin.fcmToken,
+          "Account Profile Updated 📝",
+          `Aapki profile details aur license access window update kar di gayi hai.`
+        );
+      }
+    } catch (fcmError) {
+      console.error("❌ Failed to send profile update push notification:", fcmError.message);
+    }
+
     res.json({ message: "Admin account updated successfully", admin: updatedAdmin });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -137,6 +177,20 @@ export const toggleAdminStatus = async (req, res) => {
       return res.status(404).json({ message: "Target account registry key could not be located" });
     }
 
+    // ── FCM NOTIFICATION FOR STATUS CHANGE ──
+    try {
+      if (updatedAdmin.fcmToken) {
+        const title = status === "Active" ? "Account Activated! ✅" : "Account Suspended! ⚠️";
+        const message = status === "Active" 
+          ? "Your access privileges have been successfully restored."
+          : "Your access privilege has been marked Inactive by management staff.";
+
+        await sendPushNotification(updatedAdmin.fcmToken, title, message);
+      }
+    } catch (fcmError) {
+      console.error("❌ Failed to send status change push notification:", fcmError.message);
+    }
+
     res.json({ message: `Account operational status flipped to ${status}`, admin: updatedAdmin });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -153,6 +207,7 @@ export const loginAdmin = async (req, res) => {
       return res.status(400).json({ message: "Admin not found", code: "NO_ADMIN" });
     }
 
+    // 1. PASSWORD CHECK
     let isMatch = false;
     try {
       isMatch = await bcrypt.compare(password, admin.password);
@@ -164,6 +219,35 @@ export const loginAdmin = async (req, res) => {
       return res.status(400).json({ message: "Invalid password" });
     }
 
+    // ── 🛑 NEW SECURITY CHECKS FOR MULTI-LIBRARY MANAGEMENT ──
+
+    // 2. CHECK STATUS (Skip checking for super_admin)
+    if (admin.role !== "super_admin") {
+      if (admin.status === "Pending") {
+        return res.status(403).json({ 
+          message: "Your library registration request is still pending approval.", 
+          code: "PENDING_APPROVAL" 
+        });
+      }
+
+      if (admin.status === "Inactive" || admin.status === "Rejected") {
+        return res.status(403).json({ 
+          message: "Your account is inactive or access has been revoked.", 
+          code: "ACCESS_DENIED" 
+        });
+      }
+
+      // 3. CHECK SUBSCRIPTION EXPIRATION
+      const today = new Date();
+      if (admin.accessEndDate && new Date(admin.accessEndDate) < today) {
+        return res.status(403).json({ 
+          message: "Your library access period has expired. Please submit a renewal request.", 
+          code: "ACCESS_EXPIRED" 
+        });
+      }
+    }
+
+    // ── GENERATE SESSION TOKEN IF ALL CHECKS PASS ──
     const token = jwt.sign(
       { id: admin._id, role: admin.role, libraryId: admin.libraryId },
       process.env.JWT_SECRET,
@@ -185,7 +269,6 @@ export const loginAdmin = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 // 👤 GET ADMIN PROFILE
 export const getAdminProfile = async (req, res) => {
   try {
@@ -254,23 +337,25 @@ export const setupFirstSuper = async (req, res) => {
 export const updateFcmToken = async (req, res) => {
   try {
     const { fcmToken } = req.body;
-    const adminId = req.admin?.id || req.admin?._id;
+    const adminId = req.admin?.id || req.admin?._id || req.user?.id || req.user?._id;
+    // console.log("ADMIN ID:", adminId);
 
     if (!adminId) {
-      return res.status(401).json({ message: "Unauthorized: Invalid session metadata" });
+      return res.status(401).json({ message: "Unauthorized: Invalid session metadata fallback structure" });
     }
 
     const updatedAdmin = await Admin.findByIdAndUpdate(
       adminId,
       { fcmToken: fcmToken || null },
       { new: true }
-    );
+    ).select("-password");
 
     if (!updatedAdmin) {
       return res.status(404).json({ message: "Administrator account not found" });
     }
 
-    res.json({ message: "Firebase Device Token updated successfully" });
+    // console.log(`📱 FCM Device Token updated successfully in database for: ${updatedAdmin.email}`);
+    res.json({ message: "Firebase Device Token updated successfully", admin: updatedAdmin });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -6,7 +6,7 @@ export const getSeats = async (req, res) => {
     const query = { libraryId: req.admin.libraryId };
     if (roomId) query.roomId = roomId; 
     const seats = await Seat.find(query).populate("occupiedBy").populate("roomId", "name status");
-    console.log("Seats found:", seats.length);
+    // console.log("Seats found:", seats.length);
 
     res.status(200).json(seats);
 

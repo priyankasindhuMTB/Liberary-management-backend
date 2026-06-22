@@ -45,8 +45,8 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("Updated:", admin.email, "→ role: super_admin");
-  console.log("Log out in the browser and log in again so your token includes the new role.");
+  // console.log("Updated:", admin.email, "→ role: super_admin");
+  // console.log("Log out in the browser and log in again so your token includes the new role.");
 
   await mongoose.disconnect();
 }
