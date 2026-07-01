@@ -9,7 +9,7 @@ dotenv.config();
 
 // 3. NOW import your Firebase file (Note the lowercase 'firebase' to avoid Vercel crashes)
 
-// 4. Your router imports
+// 4. Your router importsQ
 import seatRouter from "./routes/seatRoutes.js";
 import userRouter from './routes/userRoutes.js';
 import paymentRouter from "./routes/paymentRoutes.js";

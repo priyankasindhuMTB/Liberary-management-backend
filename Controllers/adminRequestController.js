@@ -5,6 +5,7 @@ import Admin from "../models/Admin.js";
 import Library from "../models/Library.js";
 import bcrypt from "bcrypt";
 import { sendPushNotification } from "../utils/Firebase/notification.js";
+import { sendStatusEmail } from "../utils/Email/emailService.js";
 
 // 📨 1. ADMIN REQUEST (Saves request with custom duration)
 export const requestAdmin = async (req, res) => {
@@ -191,6 +192,18 @@ export const approveRequest = async (req, res) => {
       console.error("❌ Failed to send approval push notification:", fcmError.message);
     }
 
+    try {
+      // request object se direct values read karenge (Chahe admin pehli baar create hua ho aur token null ho!)
+      await sendStatusEmail(
+        request.email,
+        request.name,
+        "Approved",
+        request.libraryName || "Your Library Branch"
+      );
+    } catch (emailError) {
+      console.error("❌ System bypassed email alert failure:", emailError.message);
+    }
+
     res.json({ message: "Approved successfully", accessUntil: endDate.toDateString() });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -231,6 +244,18 @@ export const rejectRequest = async (req, res) => {
       }
     } catch (fcmError) {
       console.error("❌ Failed to send rejection push notification:", fcmError.message);
+    }
+    // ── 📧 NEW AUTOMATED EMAIL NOTIFICATION FOR REJECTION ──
+    try {
+      await sendStatusEmail(
+        request.email,
+        request.name,
+        "Rejected",
+        request.libraryName || "Your Library Branch",
+        request.superAdminRemarks // Passing remarks down to html template layout
+      );
+    } catch (emailError) {
+      console.error("❌ System bypassed email alert failure:", emailError.message);
     }
 
     res.json({ message: "Request rejected successfully", request });
