@@ -1,6 +1,6 @@
 
 import express from "express";
-import {loginAdmin,getAdminProfile,hasSuperAdmin,approveCapability,setupFirstSuper,getAllAdmins,createAdminDirectly,updateAdminDirectly,toggleAdminStatus,updateFcmToken} from "../controllers/adminController.js"; // Verify correct path case mapping strings matches
+import {loginAdmin,getAdminProfile,hasSuperAdmin,approveCapability,setupFirstSuper,getAllAdmins,createAdminDirectly,updateAdminDirectly,toggleAdminStatus,updateFcmToken} from "../Controllers/adminController.js"; // Verify correct path case mapping strings matches
 import { verifyAdmin } from "../middleware/authMiddleware.js";
 
 const adminRouter = express.Router();
